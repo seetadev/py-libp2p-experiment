@@ -1,35 +1,40 @@
-import Swim from 'swim'
+// import Swim from 'swim'
 import _ from 'lodash'
 
+// TODO: Re-implement the cluster membership logic using libp2p peer discovery
+// instead of the deprecated 'swim' package.
 class CanteenCluster {
   getHost() {
     return this.host
   }
 
   getProtocol() {
-    return this.swim;
+    // return this.swim;
+    return null;
   }
 
   start(port, nodes) {
     this.host = `127.0.0.1:${port}`
-    const swim = new Swim({local: {host: this.host}})
+    // const swim = new Swim({local: {host: this.host}})
 
-    console.log(`Joining ${nodes.length} specified bootstrap node(s).`)
+    console.log('TODO: Swim protocol disabled. Cluster membership is not active.');
 
-    swim.bootstrap(nodes, err => {
-      if (err) {
-        console.error(err)
-        return
-      }
+    // console.log(`Joining ${nodes.length} specified bootstrap node(s).`)
 
-      console.log(`Cluster members: ${swim.members().length && ('[' + _.map(swim.members(), member => member.host).join(', ') + ']') || 'None.'}`)
+    // swim.bootstrap(nodes, err => {
+    //   if (err) {
+    //     console.error(err)
+    //     return
+    //   }
 
-      swim.on(Swim.EventType.Change, update => {
-        console.log(`Cluster members: ${swim.members().length && ('[' + _.map(swim.members(), member => member.host).join(', ') + ']') || 'None.'}`)
-      })
-    })
+    //   console.log(`Cluster members: ${swim.members().length && ('[' + _.map(swim.members(), member => member.host).join(', ') + ']') || 'None.'}`)
 
-    this.swim = swim
+    //   swim.on(Swim.EventType.Change, update => {
+    //     console.log(`Cluster members: ${swim.members().length && ('[' + _.map(swim.members(), member => member.host).join(', ') + ']') || 'None.'}`)
+    //   })
+    // })
+
+    // this.swim = swim
   }
 }
 

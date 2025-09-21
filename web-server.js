@@ -11,7 +11,8 @@ class WebServer {
     const clusterDetails = (req, res) => {
       const swim = cluster.getProtocol();
 
-      const members = [swim.whoami()].concat(_.map(swim.members(), member => member.host));
+      // TODO: Re-enable cluster details once peer discovery is implemented
+      const members = swim ? [swim.whoami()].concat(_.map(swim.members(), member => member.host)) : [];
       res.status(200).json({members: members});
     }
 

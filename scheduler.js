@@ -60,7 +60,7 @@ class CanteenScheduler {
     try {
       registerMember.send({
         from: account.address,
-        gas: await registerMember.estimateGas()
+        gas: await registerMember.estimateGas({ from: account.address })
       })
 
       console.log('Node has been registered on Canteen.')

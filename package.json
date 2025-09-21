@@ -3,35 +3,32 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "babel-node --presets=env,stage-2 --plugins=transform-runtime index.js",
-    "deploy": "babel-node --presets=env,stage-2 --plugins=transform-runtime deploy.js",
+    "start": "babel-node index.js",
+    "deploy": "babel-node deploy.js",
     "test": "truffle test",
     "console": "truffle console"
   },
   "dependencies": {
-    "bignumber.js": "^4.0.4",
-    "dockerode": "^2.5.3",
-    "express": "^4.16.2",
-    "ipfs": "^0.27.7",
-    "lodash": "^4.17.5",
-    "orbit-db": "^0.19.4",
-    "swim": "^0.5.0",
-    "web3": "^1.0.0-beta.30"
+    "bignumber.js": "^9.1.2",
+    "dockerode": "^4.0.2",
+    "express": "^4.19.2",
+    "helia": "^4.2.1",
+    "lodash": "^4.17.21",
+    "orbit-db": "^0.28.2",
+    "web3": "^4.10.0"
   },
   "devDependencies": {
-    "babel-core": "^6.26.0",
-    "babel-plugin-transform-runtime": "^6.23.0",
-    "babel-preset-env": "^1.6.1",
-    "babel-preset-stage-2": "^6.24.1",
-    "babel-register": "^6.26.0",
-    "browserify": "~14.3.0",
-    "chai": "^4.1.1",
-    "chai-as-promised": "^7.1.1",
-    "chai-bignum": "^1.0.0",
-    "chai-bignumber": "^2.0.1",
-    "mocha": "^3.5.0",
-    "truffle": "^4.0.4",
-    "web3-utils": "^1.0.0-beta.29",
-    "zeppelin-solidity": "1.6.0"
+    "@babel/core": "^7.24.7",
+    "@babel/node": "^7.24.7",
+    "@babel/preset-env": "^7.24.7",
+    "@babel/plugin-transform-runtime": "^7.24.7",
+    "@babel/register": "^7.24.6",
+    "@openzeppelin/contracts": "^5.0.2",
+    "browserify": "^17.0.0",
+    "chai": "^5.1.1",
+    "chai-as-promised": "^8.0.0",
+    "chai-bignumber": "^3.1.0",
+    "mocha": "^10.4.0",
+    "truffle": "^5.11.5"
   }
 }
