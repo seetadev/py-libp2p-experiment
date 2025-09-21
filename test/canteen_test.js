@@ -1,36 +1,36 @@
-const BigNumber = web3.BigNumber
-var Canteen = artifacts.require("Canteen");
+const Canteen = artifacts.require("Canteen");
+const web3Utils = require('web3-utils');
 
 contract('Canteen', accounts => {
-  let canteen = null
-  const owner = accounts[0]
-  const purchaser = accounts[1]
+  let canteen = null;
+  const owner = accounts[0];
+  const purchaser = accounts[1];
+  let chai, should;
 
   // Dynamically import and configure Chai
   before(async () => {
-    const chai = await import('chai');
+    chai = await import('chai');
     const chaiAsPromised = await import('chai-as-promised');
-
     chai.use(chaiAsPromised.default);
-    chai.should();
+    should = chai.should();
   });
 
   beforeEach(async function() {
-    canteen = await Canteen.new({from: owner, gas: 3000000})
-  })
+    canteen = await Canteen.new({ from: owner, gas: 3000000 });
+  });
 
-  it('initial state', async function () {
-    const members = await canteen.getMembersCount()
-    const images = await canteen.getImagesCount()
+  it('initial state', async function() {
+    const members = await canteen.getMembersCount();
+    const images = await canteen.getImagesCount();
 
-    members.toString().should.equal('0')
-    images.toString().should.equal('0')
-  })
+    web3Utils.toBN(members).eq(web3Utils.toBN(0)).should.be.true;
+    web3Utils.toBN(images).eq(web3Utils.toBN(0)).should.be.true;
+  });
 
   describe('Hosts and Images:', () => {
     var details;
 
-    it('test suite 1', async function () {
+    it('test suite 1', async function() {
       await canteen.addMember("host1");
       details = await canteen.getMemberDetails("host1");
       details[0].should.be.equal("");
@@ -58,8 +58,8 @@ contract('Canteen', accounts => {
       details[0].should.be.equal("img1");
 
       await canteen.addImage("img2", 2);
-      const images = await canteen.getImagesCount()
-      images.toString().should.equal('2');
+      const images = await canteen.getImagesCount();
+      web3Utils.toBN(images).eq(web3Utils.toBN(2)).should.be.true;
       details = await canteen.getMemberDetails("host1");
       details[0].should.be.equal("img2");
       details = await canteen.getMemberDetails("host3");
@@ -70,28 +70,28 @@ contract('Canteen', accounts => {
       details[0].should.be.equal("img2");
       details = await canteen.getMemberDetails("host3");
       details[0].should.be.equal("img2");
-    })
-  })
+    });
+  });
 
   describe('Adding Ports and Image Details:', () => {
     var details;
 
-    it('test suite 1', async function () {
+    it('test suite 1', async function() {
       await canteen.addImage("image1", 2);
       details = await canteen.getImageDetails("image1");
-      details[0].toString().should.equal('2');
-      details[1].toString().should.equal('0');
+      web3Utils.toBN(details[0]).eq(web3Utils.toBN(2)).should.be.true;
+      web3Utils.toBN(details[1]).eq(web3Utils.toBN(0)).should.be.true;
       details[2].should.be.equal(true);
 
       await canteen.addPortForImage("image1", 8080, 80);
       details = await canteen.getPortsForImage("image1");
-      details[0][0].toString().should.equal('8080');
-      details[0][1].toString().should.equal('80');
+      web3Utils.toBN(details[0][0]).eq(web3Utils.toBN(8080)).should.be.true;
+      web3Utils.toBN(details[0][1]).eq(web3Utils.toBN(80)).should.be.true;
 
       await canteen.addPortForImage("image1", 5000, 50);
       details = await canteen.getPortsForImage("image1");
-      details[1][0].toString().should.equal('5000');
-      details[1][1].toString().should.equal('50');
-    })
-  })
-})
+      web3Utils.toBN(details[1][0]).eq(web3Utils.toBN(5000)).should.be.true;
+      web3Utils.toBN(details[1][1]).eq(web3Utils.toBN(50)).should.be.true;
+    });
+  });
+});

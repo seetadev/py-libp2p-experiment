@@ -29,6 +29,10 @@
     "chai-as-promised": "^8.0.0",
     "chai-bignumber": "^3.1.0",
     "mocha": "^10.4.0",
-    "truffle": "^5.11.5"
+    "truffle": "^5.11.5",
+    "typescript": "^5.4.5"
+  },
+  "overrides": {
+    "@libp2p/webrtc": "^5.2.24"
   }
 }
