@@ -66,21 +66,38 @@ class CanteenScheduler {
   async registerNode() {
     const {contract, account, web3} = this
 
-    const registerMember = contract.methods.addMember(Cluster.getHost())
+    const host = Cluster.getHost()
+
+    // Pre-check membership to avoid revert on re-register
+    try {
+      const details = await contract.methods.getMemberDetails(host).call({ from: account.address })
+      const isActive = details && (details['1'] === true)
+      if (isActive) {
+        console.log('Node already active on Canteen. Skipping registration.')
+        return
+      }
+    } catch (e) {
+      // If call fails, continue to attempt registration
+    }
+
+    const registerMember = contract.methods.addMember(host)
 
     try {
+      const gas = await registerMember.estimateGas({ from: account.address })
       await registerMember.send({
         from: account.address,
-        gas: await registerMember.estimateGas({ from: account.address }),
+        gas,
         // Ganache CLI v6 is legacy (no EIP-1559). Provide a legacy gasPrice.
         gasPrice: await web3.eth.getGasPrice()
       })
 
       console.log('Node has been registered on Canteen.')
     } catch (error) {
-      if (error.message === 'Returned error: VM Exception while processing transaction: revert') {
-        console.log('Node seems to have existed previously on Canteen. Reinstantiating...')
+      const msg = (error && error.message || '').toLowerCase()
+      if (error?.code === -32000 || msg.includes('revert')) {
+        console.log('Registration reverted (likely already a member). Continuing...')
       } else {
+        console.error(error)
         throw error
       }
     }
