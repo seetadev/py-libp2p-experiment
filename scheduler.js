@@ -1,8 +1,10 @@
 import Web3 from 'web3'
-import Canteen from './build/contracts/Canteen.json'
+import fs from 'fs'
+import path from 'path'
+const Canteen = JSON.parse(fs.readFileSync(path.resolve('./build/contracts/Canteen.json'), 'utf-8'))
 import Docker from 'dockerode'
 import _ from 'lodash'
-import Cluster from './cluster'
+import Cluster from './cluster.js'
 
 class CanteenScheduler {
   async start(provider, contractAddress, privateKey, dockerPath = '/var/run/docker.sock') {

@@ -1,8 +1,8 @@
 import _ from 'lodash'
-import cluster from './cluster'
-import scheduler from './scheduler'
+import cluster from './cluster.js'
+import scheduler from './scheduler.js'
 import Web3 from 'web3'
-import web from './web-server'
+import web from './web-server.js'
 
 const args = _.reduce(process.argv.slice(2), (args, arg) => {
   const [k, v = true] = arg.split('=')
@@ -11,6 +11,7 @@ const args = _.reduce(process.argv.slice(2), (args, arg) => {
 }, {})
 
 const port = args.port || 5000
+const webPort = args.webPort || 3000
 const nodes = args.nodes && args.nodes.split(',') || []
 
 // Start cluster with libp2p
@@ -20,12 +21,12 @@ cluster.start(port, nodes).then(() => {
   // Start scheduler
   scheduler.start(
     new Web3.providers.HttpProvider('http://localhost:8545'),
-    '0x3534EFCa1ffe18A955e16de775c251ba95224bAF',
-    '0x2d862bead594d5f499c747929c4715b8fa4e5fb94c31012a73202e6aa845df3c'
+    '0xfF68CbE54a1104B3b52E7400b3Bf5653741a6b8C', // updated deployed contract address
+    '0xbc778caa6c1a8d8d747deda272670ba8636e0998f79bcdae47fb15568bca3e6a'
   )
 
-  // Start web server
-  web.start()
+  // Start web server (configurable port)
+  web.start(Number(webPort))
 
   // Listen for cluster membership changes
   cluster.on('memberJoin', (peerId) => {

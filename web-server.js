@@ -1,11 +1,10 @@
-import cluster from './cluster'
+import cluster from './cluster.js'
 import express from 'express'
 import http from 'http'
 
 class WebServer {
-  start() {
+  start(port = 3000) {
     const app = express()
-    const port = 3000
 
     const clusterDetails = (req, res) => {
       const node = cluster.getProtocol()

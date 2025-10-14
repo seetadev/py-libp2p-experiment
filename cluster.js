@@ -5,6 +5,7 @@ import { mplex } from '@libp2p/mplex'
 import { mdns } from '@libp2p/mdns'
 import { bootstrap } from '@libp2p/bootstrap'
 import { gossipsub } from '@chainsafe/libp2p-gossipsub'
+import { identify } from '@libp2p/identify'
 import { EventEmitter } from 'events'
 import _ from 'lodash'
 
@@ -55,10 +56,13 @@ class CanteenCluster extends EventEmitter {
         transports: [tcp()],
         connectionEncryption: [noise()],
         streamMuxers: [mplex()],
-        pubsub: gossipsub({
-          emitSelf: false,
-          allowPublishToZeroTopicPeers: true
-        }),
+        services: {
+          identify: identify(),
+          pubsub: gossipsub({
+            emitSelf: false,
+            allowPublishToZeroTopicPeers: true
+          })
+        },
         peerDiscovery: []
       }
 
@@ -100,7 +104,7 @@ class CanteenCluster extends EventEmitter {
       })
 
       // Subscribe to heartbeat topic
-      await this.node.pubsub.subscribe(HEARTBEAT_TOPIC)
+  await this.node.services.pubsub.subscribe(HEARTBEAT_TOPIC)
 
       // Start heartbeat broadcasting
       this._startHeartbeat()
@@ -139,7 +143,7 @@ class CanteenCluster extends EventEmitter {
     })
 
     // Handle incoming heartbeat messages
-    this.node.pubsub.addEventListener('message', (evt) => {
+    this.node.services.pubsub.addEventListener('message', (evt) => {
       if (evt.detail.topic === HEARTBEAT_TOPIC) {
         try {
           const message = JSON.parse(new TextDecoder().decode(evt.detail.data))
@@ -180,10 +184,12 @@ class CanteenCluster extends EventEmitter {
           timestamp: Date.now()
         })
 
-        await this.node.pubsub.publish(
-          HEARTBEAT_TOPIC,
-          new TextEncoder().encode(message)
-        )
+        const pubsub = this.node.services?.pubsub
+        if (!pubsub) {
+          console.warn('Pubsub service not ready; skipping heartbeat')
+          return
+        }
+        await pubsub.publish(HEARTBEAT_TOPIC, new TextEncoder().encode(message))
       } catch (error) {
         console.error('Error sending heartbeat:', error)
       }
@@ -222,7 +228,7 @@ class CanteenCluster extends EventEmitter {
     }
 
     if (this.node) {
-      await this.node.pubsub.unsubscribe(HEARTBEAT_TOPIC)
+      try { await this.node.services.pubsub.unsubscribe(HEARTBEAT_TOPIC) } catch (e) {}
       await this.node.stop()
       console.log('Libp2p node stopped')
     }
