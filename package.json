@@ -9,10 +9,17 @@
     "console": "truffle console"
   },
   "dependencies": {
+    "@chainsafe/libp2p-gossipsub": "^13.0.0",
+    "@chainsafe/libp2p-noise": "^15.0.0",
+    "@libp2p/bootstrap": "^10.0.0",
+    "@libp2p/mdns": "^10.0.0",
+    "@libp2p/mplex": "^10.0.0",
+    "@libp2p/tcp": "^9.0.0",
     "bignumber.js": "^9.1.2",
     "dockerode": "^4.0.2",
     "express": "^4.19.2",
     "helia": "^4.2.1",
+    "libp2p": "^1.2.0",
     "lodash": "^4.17.21",
     "orbit-db": "^0.28.2",
     "web3": "^4.10.0"

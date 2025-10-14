@@ -1,7 +1,6 @@
 import cluster from './cluster'
-import express from 'express';
-import _ from 'lodash';
-import http from 'http';
+import express from 'express'
+import http from 'http'
 
 class WebServer {
   start() {
@@ -9,34 +8,50 @@ class WebServer {
     const port = 3000
 
     const clusterDetails = (req, res) => {
-      const swim = cluster.getProtocol();
+      const node = cluster.getProtocol()
+      
+      if (!node) {
+        return res.status(503).json({ 
+          error: 'Cluster not initialized',
+          members: [] 
+        })
+      }
 
-      // TODO: Re-enable cluster details once peer discovery is implemented
-      const members = swim ? [swim.whoami()].concat(_.map(swim.members(), member => member.host)) : [];
-      res.status(200).json({members: members});
+      const members = [cluster.getHost()].concat(cluster.getMembers())
+      const peerId = node.peerId.toString()
+      const connections = node.getConnections().length
+      const peers = node.getPeers().length
+
+      res.status(200).json({
+        host: cluster.getHost(),
+        peerId,
+        members,
+        connections,
+        peers,
+        multiaddrs: node.getMultiaddrs().map(addr => addr.toString())
+      })
     }
 
     app.use((req, res, next) => {
-      res.header("Access-Control-Allow-Origin", "*");
-      res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-      next();
-    });
+      res.header("Access-Control-Allow-Origin", "*")
+      res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+      next()
+    })
 
     app.get('/', clusterDetails)
-    app.get('/cluster', clusterDetails);
+    app.get('/cluster', clusterDetails)
 
     try {
-      const server = http.createServer(app);
+      const server = http.createServer(app)
       server.on('error', err => {
-        console.error(err);
-      });
-      server.listen(3000);
+        console.error(err)
+      })
+      server.listen(port)
       console.log(`Cluster health check web service is listening on port ${port}`)
     } catch (error) {
-      console.log(error.message);
+      console.log(error.message)
     }
   }
 }
 
-export default new WebServer();
-
+export default new WebServer()
