@@ -7,15 +7,22 @@ import Cluster from './cluster'
 class CanteenScheduler {
   async start(provider, contractAddress, privateKey, dockerPath = '/var/run/docker.sock') {
     const web3 = new Web3(provider)
-    const account = web3.eth.accounts.wallet.add(privateKey && web3.eth.accounts.privateKeyToAccount(privateKey) || web3.eth.accounts.create())
+    // Derive an account from the provided private key and add it to the wallet
+    const acct = privateKey ? web3.eth.accounts.privateKeyToAccount(privateKey) : web3.eth.accounts.create()
+    // Add to wallet to enable signing transactions with web3 v4
+    web3.eth.accounts.wallet.add(acct)
+    // Keep a plain address string handy
+    const fromAddress = acct.address
 
-    const contract = new web3.eth.Contract(Canteen.abi, contractAddress, {from: account.address})
+    // Instantiate contract with a default from address
+    const contract = new web3.eth.Contract(Canteen.abi, contractAddress, { from: fromAddress })
 
     const docker = new Docker({socketPath: dockerPath})
 
     this.docker = docker
     this.contract = contract
-    this.account = account
+  this.account = acct
+  this.accountAddress = fromAddress
     this.web3 = web3
 
     try {
@@ -32,9 +39,13 @@ class CanteenScheduler {
   async loop() {
     // Loops to check if scheduled image for this given node changed.
 
-    const {contract, web3} = this
+  const {contract, web3} = this
 
-    const details = await contract.methods.getMemberDetails(Cluster.getHost()).call()
+    // In web3 v4, when a Solidity function isn't explicitly marked view/constant,
+    // .call() may require a from address. Provide it to avoid "Contract \"from\" address not specified".
+    const details = await contract.methods
+      .getMemberDetails(Cluster.getHost())
+      .call({ from: this.accountAddress })
     const scheduledImage = details['0']
 
     // Check if scheduled image is available.
@@ -58,9 +69,11 @@ class CanteenScheduler {
     const registerMember = contract.methods.addMember(Cluster.getHost())
 
     try {
-      registerMember.send({
+      await registerMember.send({
         from: account.address,
-        gas: await registerMember.estimateGas({ from: account.address })
+        gas: await registerMember.estimateGas({ from: account.address }),
+        // Ganache CLI v6 is legacy (no EIP-1559). Provide a legacy gasPrice.
+        gasPrice: await web3.eth.getGasPrice()
       })
 
       console.log('Node has been registered on Canteen.')
