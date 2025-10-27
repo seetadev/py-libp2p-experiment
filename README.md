@@ -29,6 +29,9 @@ canteen is an extremely scalable container orchestrator that is fault-tolerant, 
 
 canteen efficiently schedules and orchestrates designated Docker containers to a set of servers based on speculated/provisioned container resource limits.
 
+### presentation:
+https://docs.google.com/presentation/d/16UA1B5uPBWCZlvGwPWEaRGOn3Be_-StJ2hxTuyMRDkc/edit?usp=sharing
+
 
 ## Installing canteen
 
