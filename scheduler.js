@@ -1,21 +1,46 @@
 import Web3 from 'web3'
-import Canteen from './build/contracts/Canteen.json'
+import fs from 'fs'
+import path from 'path'
+const Canteen = JSON.parse(fs.readFileSync(path.resolve('./build/contracts/Canteen.json'), 'utf-8'))
 import Docker from 'dockerode'
 import _ from 'lodash'
-import Cluster from './cluster'
+import Cluster from './cluster.js'
 
 class CanteenScheduler {
-  async start(provider, contractAddress, privateKey, dockerPath = '/var/run/docker.sock') {
+  async start(provider, contractAddress, privateKey, dockerPath) {
     const web3 = new Web3(provider)
-    const account = web3.eth.accounts.wallet.add(privateKey && web3.eth.accounts.privateKeyToAccount(privateKey) || web3.eth.accounts.create())
+    // Derive an account from the provided private key and add it to the wallet
+    const acct = privateKey ? web3.eth.accounts.privateKeyToAccount(privateKey) : web3.eth.accounts.create()
+    // Add to wallet to enable signing transactions with web3 v4
+    web3.eth.accounts.wallet.add(acct)
+    // Keep a plain address string handy
+    const fromAddress = acct.address
 
-    const contract = new web3.eth.Contract(Canteen.abi, contractAddress, {from: account.address})
+    // Instantiate contract with a default from address
+    const contract = new web3.eth.Contract(Canteen.abi, contractAddress, { from: fromAddress })
+
+    // Auto-detect Docker socket path
+    if (!dockerPath) {
+      const desktopSocket = `${process.env.HOME}/.docker/desktop/docker.sock`
+      const defaultSocket = '/var/run/docker.sock'
+      
+      if (fs.existsSync(desktopSocket)) {
+        dockerPath = desktopSocket
+        console.log('Using Docker Desktop socket:', dockerPath)
+      } else if (fs.existsSync(defaultSocket)) {
+        dockerPath = defaultSocket
+        console.log('Using default Docker socket:', dockerPath)
+      } else {
+        throw new Error('Could not find Docker socket. Is Docker running?')
+      }
+    }
 
     const docker = new Docker({socketPath: dockerPath})
 
     this.docker = docker
     this.contract = contract
-    this.account = account
+  this.account = acct
+  this.accountAddress = fromAddress
     this.web3 = web3
 
     try {
@@ -32,9 +57,13 @@ class CanteenScheduler {
   async loop() {
     // Loops to check if scheduled image for this given node changed.
 
-    const {contract, web3} = this
+  const {contract, web3} = this
 
-    const details = await contract.methods.getMemberDetails(Cluster.getHost()).call()
+    // In web3 v4, when a Solidity function isn't explicitly marked view/constant,
+    // .call() may require a from address. Provide it to avoid "Contract \"from\" address not specified".
+    const details = await contract.methods
+      .getMemberDetails(Cluster.getHost())
+      .call({ from: this.accountAddress })
     const scheduledImage = details['0']
 
     // Check if scheduled image is available.
@@ -55,19 +84,38 @@ class CanteenScheduler {
   async registerNode() {
     const {contract, account, web3} = this
 
-    const registerMember = contract.methods.addMember(Cluster.getHost())
+    const host = Cluster.getHost()
+
+    // Pre-check membership to avoid revert on re-register
+    try {
+      const details = await contract.methods.getMemberDetails(host).call({ from: account.address })
+      const isActive = details && (details['1'] === true)
+      if (isActive) {
+        console.log('Node already active on Canteen. Skipping registration.')
+        return
+      }
+    } catch (e) {
+      // If call fails, continue to attempt registration
+    }
+
+    const registerMember = contract.methods.addMember(host)
 
     try {
-      registerMember.send({
+      const gas = await registerMember.estimateGas({ from: account.address })
+      await registerMember.send({
         from: account.address,
-        gas: await registerMember.estimateGas()
+        gas,
+        // Ganache CLI v6 is legacy (no EIP-1559). Provide a legacy gasPrice.
+        gasPrice: await web3.eth.getGasPrice()
       })
 
       console.log('Node has been registered on Canteen.')
     } catch (error) {
-      if (error.message === 'Returned error: VM Exception while processing transaction: revert') {
-        console.log('Node seems to have existed previously on Canteen. Reinstantiating...')
+      const msg = (error && error.message || '').toLowerCase()
+      if (error?.code === -32000 || msg.includes('revert')) {
+        console.log('Registration reverted (likely already a member). Continuing...')
       } else {
+        console.error(error)
         throw error
       }
     }
@@ -78,6 +126,17 @@ class CanteenScheduler {
     if (this.scheduledImage.length === 0) return
 
     this.docker.pull(scheduledImage, (err, stream) => {
+      if (err) {
+        console.error(`Error pulling image '${scheduledImage}':`, err.message)
+        console.error('Make sure Docker is running and the image name is correct.')
+        return
+      }
+
+      if (!stream) {
+        console.error(`No stream returned when pulling image '${scheduledImage}'`)
+        return
+      }
+
       console.log('')
 
       this.docker.modem.followProgress(stream, finished.bind(this), progress)

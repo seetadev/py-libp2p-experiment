@@ -1,8 +1,8 @@
 import _ from 'lodash'
-import cluster from './cluster'
-import scheduler from './scheduler'
+import cluster from './cluster.js'
+import scheduler from './scheduler.js'
 import Web3 from 'web3'
-import web from './web-server';
+import web from './web-server.js'
 
 const args = _.reduce(process.argv.slice(2), (args, arg) => {
   const [k, v = true] = arg.split('=')
@@ -11,17 +11,53 @@ const args = _.reduce(process.argv.slice(2), (args, arg) => {
 }, {})
 
 const port = args.port || 5000
+const webPort = args.webPort || 3000
 const nodes = args.nodes && args.nodes.split(',') || []
 
-cluster.start(port, nodes)
+// Start cluster with libp2p
+cluster.start(port, nodes).then(() => {
+  console.log('Cluster started successfully')
 
-scheduler.start(new Web3.providers.HttpProvider('http://localhost:8545'),
-  '0x345ca3e014aaf5dca488057592ee47305d9b3e10',
-  '0xc87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3')
+  // Start scheduler
+  scheduler.start(
+    new Web3.providers.HttpProvider('http://localhost:8545'),
+    '0x8CFCC7a1826DA4f4b7ca856A9E8820a3Afefe102', // Deployed Canteen contract address
+    '0xd5484d3d5b12d261bb07206e2b8fdccf71f6f5177b7d87c186acf11f717d0e27' // Ganache account (0) private key
+  )
 
-web.start();
+  // Start web server (configurable port)
+  web.start(Number(webPort))
 
-process.stdin.resume();
+  // Listen for cluster membership changes
+  cluster.on('memberJoin', (peerId) => {
+    console.log(`New member joined: ${peerId}`)
+  })
 
-process.on('exit', scheduler.cleanup.bind(scheduler));
-process.on('SIGINT', scheduler.cleanup.bind(scheduler));
+  cluster.on('memberLeave', (peerId) => {
+    console.log(`Member left: ${peerId}`)
+  })
+}).catch(error => {
+  console.error('Failed to start cluster:', error)
+  process.exit(1)
+})
+
+process.stdin.resume()
+
+// Graceful shutdown
+const cleanup = async () => {
+  console.log('\nShutting down gracefully...')
+  
+  try {
+    await scheduler.cleanup()
+    await cluster.stop()
+    console.log('Cleanup completed')
+    process.exit(0)
+  } catch (error) {
+    console.error('Error during cleanup:', error)
+    process.exit(1)
+  }
+}
+
+process.on('exit', cleanup)
+process.on('SIGINT', cleanup)
+process.on('SIGTERM', cleanup)

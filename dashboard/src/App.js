@@ -1,4 +1,4 @@
-import React, { Component, ReactDOM } from 'react'
+import React, { Component } from 'react'
 import './App.css'
 import Web3 from 'web3'
 import styled from 'styled-components'
@@ -11,7 +11,7 @@ background-color: white;
 width: 100%;
 height: 100%;
 margin: 4em;
-line-height: 0.25em;
+line-height: 1.4;
 `
 
 const Container = styled.div`
@@ -27,6 +27,7 @@ font-size: 3em;
 const StatusContainer = styled.div`
 display: flex;
 flex-direction: row;
+flex-wrap: wrap;
 margin-top: 0.5em;
 margin-bottom: 0.5em;
 padding-top: 1em;
@@ -39,12 +40,21 @@ color: black;
 & > *:not(:last-child) {
 margin-right: 0.5em;
 }
+
+& code {
+  word-break: break-all;
+}
 `
 
 const StatusColumn = styled.div`
-flex: 1;
-width: inherit;
+flex: 1 1 220px;
+min-width: 220px;
+width: auto;
 height: 100%;
+display: flex;
+align-items: center;
+gap: 0.25em;
+word-break: break-word;
 `
 
 const FormColumn = styled.div`
@@ -95,9 +105,13 @@ class App extends Component {
   constructor(props) {
     super(props)
 
+    const CONTRACT_ADDRESS = process.env.REACT_APP_CANTEEN_CONTRACT || '0x3534EFCa1ffe18A955e16de775c251ba95224bAF'
+    const PROVIDER_URL = process.env.REACT_APP_WEB3_PROVIDER || 'http://localhost:8545'
+    this.CLUSTER_URL = process.env.REACT_APP_CLUSTER_URL || 'http://localhost:3000/cluster'
+
     this.state = {
       status: 'connecting...',
-      contract: '0x345ca3e014aaf5dca488057592ee47305d9b3e10',
+      contract: CONTRACT_ADDRESS,
       images: [],
       nodes: [],
       image: {
@@ -111,7 +125,7 @@ class App extends Component {
       }
     }
 
-    this.web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
+    this.web3 = new Web3(new Web3.providers.HttpProvider(PROVIDER_URL))
     this.contract = new this.web3.eth.Contract(Canteen.abi, this.state.contract)
 
     this.width = 960
@@ -127,8 +141,31 @@ class App extends Component {
 
   async componentDidMount() {
     // Get cluster data and setup visualization.
+    // Determine connectivity status first
+    const statusParts = []
+    try {
+      const listening = await this.web3.eth.net.isListening()
+      statusParts.push(`web3:${listening ? 'ok' : 'down'}`)
+    } catch (e) {
+      statusParts.push('web3:down')
+    }
 
-    const data = await (await fetch('http://localhost:3000/cluster')).json()
+    try {
+      await this.contract.methods.getImagesCount().call()
+      statusParts.push('contract:ok')
+    } catch (e) {
+      statusParts.push('contract:err')
+    }
+
+    let data = { members: [] }
+    try {
+      data = await (await fetch(this.CLUSTER_URL)).json()
+      statusParts.push('cluster:ok')
+    } catch (e) {
+      statusParts.push('cluster:down')
+    }
+
+    this.setState({ status: statusParts.join(' | ') })
 
     this.graph = d3.select(this.refs.graph)
 
@@ -260,6 +297,7 @@ class App extends Component {
           <Subtitle>A decentralized container orchestrator.</Subtitle>
 
           <StatusContainer>
+            <StatusColumn><Label>status:</Label> {status}</StatusColumn>
             <StatusColumn style={{flex: 2}}><Label>contract:</Label> <code>{contract}</code></StatusColumn>
             <StatusColumn style={{flex: 2}}><Label>deployed:</Label> {images.length == 0 && 'N/A' || images.join(', ')}
             </StatusColumn>
